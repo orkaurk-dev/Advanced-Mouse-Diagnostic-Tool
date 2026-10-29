@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geavanceerde Muisdiagnose</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#141c30;--panel2:#0f1729;--line:#2b3854;--text:#edf3ff;--muted:#a9b7d0;--accent:#6ee7d2;--warn:#ffc66d;--bad:#ff7f91}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172745 0,#0b1020 55%);color:var(--text);font:15px/1.45 "Segoe UI",Arial,sans-serif}
+header{padding:25px clamp(16px,4vw,48px) 18px;border-bottom:1px solid var(--line)}h1{margin:0 0 6px;font-size:clamp(24px,4vw,36px)}header p{margin:0;color:var(--muted);max-width:900px}
+main{padding:20px clamp(12px,3vw,36px) 40px;max-width:1600px;margin:auto}.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.card{background:linear-gradient(145deg,rgba(24,35,58,.97),rgba(16,24,42,.97));border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}.span-3{grid-column:span 3}.span-4{grid-column:span 4}.span-5{grid-column:span 5}.span-6{grid-column:span 6}.span-7{grid-column:span 7}.span-8{grid-column:span 8}.span-12{grid-column:span 12}
+h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:0 0 6px;color:var(--muted);font-weight:600}.metric{font-size:27px;font-weight:700;letter-spacing:.3px;font-variant-numeric:tabular-nums}.sub{font-size:12px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.metricbox{padding:11px;border-radius:10px;background:var(--panel2);border:1px solid #24314a}
+button,.button{border:1px solid #3b4b6b;background:#22314d;color:var(--text);border-radius:9px;padding:9px 12px;cursor:pointer;font:inherit;font-weight:600}button:hover{border-color:var(--accent);background:#263d55}button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.primary{background:#14665e;border-color:#238b7e}.danger{background:#4a2433;border-color:#874053}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.note{border-left:3px solid var(--warn);padding:9px 12px;background:#2a261e;border-radius:0 8px 8px 0;color:#ffe7bd;font-size:13px}
+#testArea{height:330px;border:2px dashed #4a6084;border-radius:12px;background-color:#0a1325;background-image:linear-gradient(#172640 1px,transparent 1px),linear-gradient(90deg,#172640 1px,transparent 1px);background-size:25px 25px;position:relative;overflow:hidden;cursor:crosshair;touch-action:pan-y}
+#testArea:fullscreen{height:100vh;border:0;border-radius:0}#testArea:fullscreen .target{width:100px;height:100px}
+.target{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;border:2px solid var(--accent);border-radius:50%;background:rgba(110,231,210,.12);display:grid;place-items:center;font-weight:700;color:var(--accent);user-select:none;cursor:grab;box-shadow:0 0 24px #6ee7d225}
+.target.dragging{background:#ffc66d33;border-color:var(--warn);color:var(--warn);cursor:grabbing}.areaHint{position:absolute;bottom:10px;left:12px;color:#9babc7;font-size:12px;pointer-events:none}
+canvas{width:100%;height:190px;display:block;background:#091222;border:1px solid var(--line);border-radius:10px}
+.log{height:220px;overflow:auto;background:#091222;border:1px solid var(--line);border-radius:10px;padding:8px;font:12px/1.5 Consolas,monospace}.logrow{display:grid;grid-template-columns:80px 120px 1fr;gap:8px;padding:3px 4px;border-bottom:1px solid #17243a;overflow-wrap:anywhere}.logrow span:first-child{color:#91a4c7}.logrow span:nth-child(2){color:var(--accent)}
+.status{display:inline-block;border-radius:99px;padding:3px 8px;background:#1c3d39;color:#a7f3df;font-size:12px}.status.warn{background:#44351e;color:#ffe0a1}.status.bad{background:#482633;color:#ffb4c0}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;padding:8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:600}.bigbutton{width:100%;min-height:90px;font-size:16px}.clickButtons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+input[type=checkbox]{accent-color:var(--accent)}footer{padding:18px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:900px){.span-3,.span-4,.span-5,.span-6,.span-7,.span-8{grid-column:span 6}.span-12{grid-column:span 12}}
+@media(max-width:600px){.span-3,.span-4,.span-5,.span-6,.span-7,.span-8,.span-12{grid-column:span 12}.logrow{grid-template-columns:68px 95px 1fr}.metric{font-size:23px}#testArea{height:300px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Geavanceerde muisdiagnose</h1>
+  <p>Test muisknoppen, dubbelklikken, beweging, slepen en scrollen. Alles wordt lokaal in deze browser verwerkt; er wordt niets geüpload.</p>
+</header>
+<main>
+<div class="toolbar" style="margin-bottom:14px">
+  <button class="primary" id="exportJson">Exporteer rapport (JSON)</button>
+  <button id="exportTxt">Exporteer rapport (TXT)</button>
+  <button id="reset">Wis alle testresultaten</button>
+  <button id="fullscreen">Testvlak volledig scherm</button>
+</div>
+<div class="grid">
+  <section class="card span-4">
+    <h2>Live beweging</h2>
+    <div class="metrics">
+      <div class="metricbox"><h3>Scherm X</h3><div class="metric" id="screenX">—</div></div>
+      <div class="metricbox"><h3>Scherm Y</h3><div class="metric" id="screenY">—</div></div>
+      <div class="metricbox"><h3>Bewegingsevents</h3><div class="metric" id="moves">0</div></div>
+      <div class="metricbox"><h3>Gem. events/sec</h3><div class="metric" id="rate">0</div></div>
+      <div class="metricbox"><h3>Afgelegde afstand</h3><div class="metric" id="distance">0 px</div></div>
+      <div class="metricbox"><h3>Laatste pauze</h3><div class="metric" id="pause">—</div></div>
+    </div>
+    <p class="sub" style="margin-bottom:0">Eventfrequentie is gebaseerd op browser-events en is geen meting van de echte USB-pollingrate.</p>
+  </section>
+  <section class="card span-4">
+    <h2>Muisknoppen</h2>
+    <table>
+      <thead><tr><th>Knop</th><th>Geregistreerde klikken</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Links</td><td id="leftCount">0</td><td id="leftStatus">Nog niet getest</td></tr>
+        <tr><td>Rechts</td><td id="rightCount">0</td><td id="rightStatus">Nog niet getest</td></tr>
+        <tr><td>Midden / wiel</td><td id="middleCount">0</td><td id="middleStatus">Nog niet getest</td></tr>
+      </tbody>
+    </table>
+    <p class="sub">Klik in het testvlak. Rechtsklik wordt daar onderschept zodat het contextmenu niet in de weg zit.</p>
+    <div class="clickButtons">
+      <button class="bigbutton" id="testLeft">Test links</button>
+      <button class="bigbutton" id="testMiddle">Test midden</button>
+      <button class="bigbutton" id="testRight">Test rechts</button>
+    </div>
+  </section>
+  <section class="card span-4">
+    <h2>Dubbelkliktest</h2>
+    <div class="metricbox" style="margin-bottom:10px"><h3>Interval tussen laatste twee klikken</h3><div class="metric" id="clickInterval">—</div><div class="sub">milliseconden</div></div>
+    <div class="metricbox"><h3>Snelle klikparen (≤ 250 ms)</h3><div class="metric" id="fastPairs">0</div><div class="sub" id="doubleHint">Klik herhaaldelijk op dezelfde knop in het testvlak.</div></div>
+    <p class="sub">Snelle klikken zijn niet automatisch defect: Windows-instellingen en je eigen kliktempo beïnvloeden dit resultaat.</p>
+  </section>
+  <section class="card span-8">
+    <h2>Bewegings- en sleepvlak</h2>
+    <div id="testArea" tabindex="0" aria-label="Muis testvlak">
+      <div class="target" id="dragTarget" draggable="false">SLEEP</div>
+      <div class="areaHint">Beweeg de muis, klik alle knoppen, scroll en sleep de cirkel.</div>
+    </div>
+    <div class="metrics" style="margin-top:10px">
+      <div class="metricbox"><h3>Sleeppogingen</h3><div class="metric" id="dragCount">0</div></div>
+      <div class="metricbox"><h3>Geslaagde sleepsessies</h3><div class="metric" id="dragSuccess">0</div></div>
+      <div class="metricbox"><h3>Scroll-events</h3><div class="metric" id="wheelCount">0</div></div>
+      <div class="metricbox"><h3>Laatste scroll delta</h3><div class="metric" id="wheelDelta">—</div></div>
+    </div>
+  </section>
+  <section class="card span-4">
+    <h2>Scroll & status</h2>
+    <div class="metricbox" style="margin-bottom:10px"><h3>Scrollrichting</h3><div class="metric" id="wheelDirection" style="font-size:22px">—</div></div>
+    <div class="metricbox" style="margin-bottom:10px"><h3>Laatste muisknop</h3><div class="metric" id="lastButton" style="font-size:20px">—</div></div>
+    <div class="note">Gebruik ook een tekstveld of webpagina om te controleren of de muis zich buiten deze test normaal gedraagt. Browserbeperkingen kunnen hardwareproblemen niet volledig uitsluiten.</div>
+  </section>
+  <section class="card span-6">
+    <h2>Bewegingsspoor</h2>
+    <canvas id="trail" width="900" height="260" aria-label="Grafiek van muisbeweging"></canvas>
+    <div class="toolbar" style="margin-top:9px"><button id="clearTrail">Wis bewegingsspoor</button><label class="sub" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="showPoints" checked> Toon punten</label></div>
+  </section>
+  <section class="card span-6">
+    <h2>Gebeurtenislogboek <span class="status" id="logStatus">Actief</span></h2>
+    <div class="log" id="eventLog" aria-live="polite"></div>
+    <div class="toolbar" style="margin-top:9px"><button id="clearLog">Wis logboek</button><span class="sub" id="logCount" style="align-self:center">0 gebeurtenissen</span></div>
+  </section>
+  <section class="card span-12">
+    <h2>Resultaten interpreteren</h2>
+    <ul>
+      <li><b>Onbedoelde dubbelklikken:</b> klik één keer langzaam. Registreert de test meerdere click-events, dan kan de schakelaar versleten zijn, maar test ook in een andere app.</li>
+      <li><b>Beweging valt weg:</b> beweeg langzaam en snel over het raster. Onderbrekingen kunnen door de sensor, het oppervlak, draadloze verbinding of USB-poort komen.</li>
+      <li><b>Scrollen hapert of keert om:</b> scroll langzaam telkens één stap. Onregelmatige delta's kunnen wijzen op een versleten scrollwiel, maar de browser en instellingen spelen ook mee.</li>
+      <li><b>Knop reageert niet:</b> probeer meerdere keren en test daarna een andere USB-poort of computer om muis- en pc-problemen van elkaar te scheiden.</li>
+    </ul>
+    <p class="sub">Deze pagina voert geen hardwarediagnose op USB-niveau uit. Testresultaten zijn aanwijzingen, geen definitief oordeel over defecte hardware.</p>
+  </section>
+</div>
+</main>
+<footer>Offline HTML-tool · Werkt in recente versies van Chrome, Edge en Firefox</footer>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const state = {
+    started: new Date().toISOString(), moves: 0, distance: 0, clicks: {left:0,right:0,middle:0},
+    fastPairs: 0, clickTimes: [], dragAttempts: 0, dragSuccess: 0, wheelEvents: 0,
+    wheelX: 0, wheelY: 0, eventRate: 0, log: [], points: [], lastMoveAt: null, lastPause: null
+  };
+  const area = $('testArea'), target = $('dragTarget'), canvas = $('trail'), ctx = canvas.getContext('2d');
+  const names = {0:'Links',1:'Midden',2:'Rechts'};
+  const keyFor = b => b===0?'left':b===1?'middle':'right';
+  const time = () => new Date().toLocaleTimeString('nl-NL',{hour12:false});
+  function log(type, detail='') {
+    const item = {time:new Date().toISOString(), type, detail:String(detail)};
+    state.log.push(item); if(state.log.length>1000) state.log.shift();
+    const row=document.createElement('div'); row.className='logrow';
+    [time(),type,String(detail)].forEach((v,i)=>{const s=document.createElement('span');s.textContent=v;row.appendChild(s)});
+    $('eventLog').prepend(row);
+    while($('eventLog').children.length>180)$('eventLog').lastChild.remove();
+    $('logCount').textContent=`${state.log.length} gebeurtenissen`;
+  }
+  function updateClicks() {
+    $('leftCount').textContent=state.clicks.left; $('rightCount').textContent=state.clicks.right; $('middleCount').textContent=state.clicks.middle;
+    for(const k of ['left','right','middle']) {
+      const el=$(`${k}Status`);
+      el.textContent=state.clicks[k]?'Events ontvangen':'Nog niet getest';
+      el.className=state.clicks[k]?'status':'sub';
+    }
+    $('fastPairs').textContent=state.fastPairs;
+  }
+  function registerClick(button, source='testvlak') {
+    const key=keyFor(button); state.clicks[key]++; $('lastButton').textContent=names[button]||'Onbekend';
+    const now=performance.now(), last=state.clickTimes[state.clickTimes.length-1];
+    if(last && last.key===key) {
+      const dt=now-last.time; $('clickInterval').textContent=Math.round(dt);
+      if(dt<=250) {state.fastPairs++; $('doubleHint').textContent='Snelle klikreeks geregistreerd; controleer of je maar één keer klikte.';}
+    } else $('clickInterval').textContent='—';
+    state.clickTimes.push({key,time:now}); if(state.clickTimes.length>30)state.clickTimes.shift();
+    updateClicks(); log('Klik',`${names[button]||button} (${source})`);
+  }
+  function resizeCanvas() {
+    const r=canvas.getBoundingClientRect(), dpr=Math.max(1,window.devicePixelRatio||1);
+    canvas.width=Math.round(r.width*dpr);canvas.height=Math.round(r.height*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);drawTrail();
+  }
+  function drawTrail() {
+    const w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle='#22324c';ctx.lineWidth=1;
+    for(let x=0;x<w;x+=25){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}
+    for(let y=0;y<h;y+=25){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+    if(state.points.length<2)return;
+    const pts=state.points, minX=Math.min(...pts.map(p=>p.x)), maxX=Math.max(...pts.map(p=>p.x)), minY=Math.min(...pts.map(p=>p.y)), maxY=Math.max(...pts.map(p=>p.y));
+    const pad=12, sx=(w-2*pad)/Math.max(1,maxX-minX), sy=(h-2*pad)/Math.max(1,maxY-minY), scale=Math.min(sx,sy);
+    const usedW=(maxX-minX)*scale,usedH=(maxY-minY)*scale,ox=(w-usedW)/2,oy=(h-usedH)/2;
+    ctx.strokeStyle='#6ee7d2';ctx.lineWidth=2;ctx.beginPath();
+    pts.forEach((p,i)=>{const x=ox+(p.x-minX)*scale,y=oy+(p.y-minY)*scale;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});
+    ctx.stroke();
+    if($('showPoints').checked){ctx.fillStyle='#ffc66d';for(const p of pts){ctx.beginPath();ctx.arc(ox+(p.x-minX)*scale,oy+(p.y-minY)*scale,2,0,Math.PI*2);ctx.fill()}}
+  }
+  area.addEventListener('pointermove', e => {
+    $('screenX').textContent=e.screenX; $('screenY').textContent=e.screenY; state.moves++;
+    if(state.lastMoveAt!==null){const dt=performance.now()-state.lastMoveAt;if(dt>100)state.lastPause=Math.round(dt)}
+    state.lastMoveAt=performance.now(); state.distance+=Math.hypot(e.movementX||0,e.movementY||0);
+    state.points.push({x:e.offsetX,y:e.offsetY,t:performance.now()});if(state.points.length>600)state.points.shift();
+    $('moves').textContent=state.moves;$('distance').textContent=`${Math.round(state.distance)} px`;$('pause').textContent=state.lastPause===null?'—':`${state.lastPause} ms`;
+    drawTrail();
+  });
+  area.addEventListener('pointerdown', e => {
+    if(e.target===target)return;
+    if(e.button===2)e.preventDefault();
+    registerClick(e.button);
+  });
+  area.addEventListener('contextmenu', e=>e.preventDefault());
+  target.addEventListener('pointerdown', e=>{
+    if(e.button!==0)return;
+    e.preventDefault();state.dragAttempts++;$('dragCount').textContent=state.dragAttempts;
+    target.classList.add('dragging');target.setPointerCapture(e.pointerId);target.dataset.startX=e.clientX;target.dataset.startY=e.clientY;target.dataset.startLeft=parseFloat(target.style.left)||50;target.dataset.startTop=parseFloat(target.style.top)||50;
+    log('Sleep gestart','SLEEP-cirkel');registerClick(0,'sleepdoel');
+  });
+  target.addEventListener('pointermove',e=>{
+    if(!target.classList.contains('dragging'))return;
+    const r=area.getBoundingClientRect();let x=e.clientX-r.left,y=e.clientY-r.top;
+    x=Math.max(42,Math.min(r.width-42,x));y=Math.max(42,Math.min(r.height-42,y));
+    target.style.left=`${x}px`;target.style.top=`${y}px`;target.style.transform='translate(-50%,-50%)';
+  });
+  function endDrag(){if(!target.classList.contains('dragging'))return;target.classList.remove('dragging');state.dragSuccess++;$('dragSuccess').textContent=state.dragSuccess;log('Sleep voltooid',`${state.dragSuccess} succesvol`)}
+  target.addEventListener('pointerup',endDrag);target.addEventListener('pointercancel',()=>{target.classList.remove('dragging');log('Sleep geannuleerd')});
+  area.addEventListener('wheel',e=>{
+    state.wheelEvents++;state.wheelX=e.deltaX;state.wheelY=e.deltaY;
+    $('wheelCount').textContent=state.wheelEvents;$('wheelDelta').textContent=`X ${e.deltaX.toFixed(1)} / Y ${e.deltaY.toFixed(1)}`;
+    $('wheelDirection').textContent=Math.abs(e.deltaY)>Math.abs(e.deltaX)?(e.deltaY>0?'Omlaag':'Omhoog'):(e.deltaX>0?'Rechts':'Links');
+    log('Scroll',`deltaX=${e.deltaX.toFixed(1)}, deltaY=${e.deltaY.toFixed(1)}, mode=${e.deltaMode}`);
+  },{passive:true});
+  document.addEventListener('pointermove',()=>{}, {passive:true});
+  document.addEventListener('pointerdown',e=>{
+    if(!area.contains(e.target))registerClick(e.button,'knop buiten testvlak');
+  });
+  document.addEventListener('contextmenu',e=>{if(area.contains(e.target))e.preventDefault()});
+  for(const [id,b] of [['testLeft',0],['testMiddle',1],['testRight',2]])$(id).addEventListener('click',()=>registerClick(b,'testknop'));
+  // Estimate browser-delivered pointermove event rate over a rolling one-second window.
+  const moveTimes=[];let lastRateUpdate=performance.now();
+  area.addEventListener('pointermove',()=>{const n=performance.now();moveTimes.push(n);while(moveTimes.length&&moveTimes[0]<n-1000)moveTimes.shift();if(n-lastRateUpdate>200){$('rate').textContent=moveTimes.length;lastRateUpdate=n;}},{passive:true});
+  $('clearTrail').addEventListener('click',()=>{state.points=[];drawTrail();log('Actie','Bewegingsspoor gewist')});
+  $('showPoints').addEventListener('change',drawTrail);
+  $('clearLog').addEventListener('click',()=>{state.log=[];$('eventLog').replaceChildren();$('logCount').textContent='0 gebeurtenissen';log('Actie','Logboek opnieuw gestart')});
+  $('fullscreen').addEventListener('click',async()=>{try{if(!document.fullscreenElement)await area.requestFullscreen();else await document.exitFullscreen()}catch(e){log('Fout','Volledig scherm niet beschikbaar')}});
+  function report(){return {tool:'Geavanceerde muisdiagnose',version:'1.0',started:state.started,exported:new Date().toISOString(),results:{movementEvents:state.moves,distancePixels:Math.round(state.distance),browserEventsPerSecond:Number($('rate').textContent)||0,clicks:state.clicks,fastClickPairs:state.fastPairs,lastClickIntervalMs:$('clickInterval').textContent,dragAttempts:state.dragAttempts,successfulDrags:state.dragSuccess,scrollEvents:state.wheelEvents,lastScrollDelta:{x:state.wheelX,y:state.wheelY},lastPauseMs:state.lastPause},events:state.log}}
+  function download(name,content,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+  $('exportJson').addEventListener('click',()=>{download('muisdiagnose-rapport.json',JSON.stringify(report(),null,2),'application/json');log('Export','JSON-rapport gemaakt')});
+  $('exportTxt').addEventListener('click',()=>{const r=report();let t='GEAVANCEERDE MUISDIAGNOSE\\n\\n'+JSON.stringify(r.results,null,2)+'\\n\\nGEBEURTENISSEN\\n'+r.events.map(e=>`${e.time} | ${e.type} | ${e.detail}`).join('\\n');download('muisdiagnose-rapport.txt',t,'text/plain;charset=utf-8');log('Export','TXT-rapport gemaakt')});
+  $('reset').addEventListener('click',()=>{
+    if(!confirm('Alle tellers, het logboek en het bewegingsspoor wissen?'))return;
+    state.moves=0;state.distance=0;state.clicks={left:0,right:0,middle:0};state.fastPairs=0;state.clickTimes=[];state.dragAttempts=0;state.dragSuccess=0;state.wheelEvents=0;state.wheelX=0;state.wheelY=0;state.eventRate=0;state.log=[];state.points=[];state.lastMoveAt=null;state.lastPause=null;
+    ['moves','rate','distance','pause','dragCount','dragSuccess','wheelCount'].forEach(id=>$(id).textContent=id==='distance'?'0 px':id==='pause'?'—':'0');
+    $('screenX').textContent='—';$('screenY').textContent='—';$('clickInterval').textContent='—';$('wheelDelta').textContent='—';$('wheelDirection').textContent='—';$('lastButton').textContent='—';$('doubleHint').textContent='Klik herhaaldelijk op dezelfde knop in het testvlak.';
+    $('eventLog').replaceChildren();$('logCount').textContent='0 gebeurtenissen';updateClicks();target.style.left='50%';target.style.top='50%';drawTrail();log('Systeem','Test gereset');
+  });
+  new ResizeObserver(resizeCanvas).observe(canvas);
+  resizeCanvas();log('Systeem','Muisdiagnose gestart');
+})();
+</script>
+</body>
+</html>
